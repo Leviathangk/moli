@@ -4,9 +4,8 @@ use crate::structured_clone::{
     read_dom_exception_payload, read_quota_exceeded_error_payload, write_dom_exception_payload,
     write_quota_exceeded_error_payload,
 };
-use crate::{
-    context_bootstrap::dom_rect_clone_data,
-    structured_clone::{HOST_OBJECT_TAG_GEOMETRY, read_dom_rect_payload, write_dom_rect_payload},
+use crate::structured_clone::{
+    HOST_OBJECT_TAG_GEOMETRY, read_geometry_clone_object, write_geometry_clone_object,
 };
 use crate::{
     context_bootstrap::{
@@ -68,11 +67,11 @@ impl v8::ValueSerializerImpl for IndexedDbStructuredCloneSerializer {
             {
                 return Some(true);
             }
-            Some("DOMRect" | "DOMRectReadOnly") => {
-                if let Some((mutable, values)) = dom_rect_clone_data(scope, object) {
-                    write_dom_rect_payload(serializer, mutable, values);
-                    return Some(true);
-                }
+            Some(
+                "DOMPoint" | "DOMPointReadOnly" | "DOMRect" | "DOMRectReadOnly" | "DOMQuad"
+                | "DOMMatrix" | "DOMMatrixReadOnly",
+            ) => {
+                return write_geometry_clone_object(scope, object, serializer);
             }
             Some("EncodedVideoChunk") => {
                 let exception = dom_exception_value(
@@ -313,7 +312,7 @@ impl v8::ValueDeserializerImpl for IndexedDbStructuredCloneDeserializer<'_> {
             HOST_OBJECT_TAG_QUOTA_EXCEEDED_ERROR => {
                 read_quota_exceeded_error_payload(scope, deserializer)
             }
-            HOST_OBJECT_TAG_GEOMETRY => read_dom_rect_payload(scope, deserializer),
+            HOST_OBJECT_TAG_GEOMETRY => read_geometry_clone_object(scope, deserializer),
             HOST_OBJECT_TAG_IMAGE_DATA => read_image_data_payload(scope, deserializer),
             HOST_OBJECT_TAG_CRYPTO_KEY => {
                 read_crypto_key_payload(scope, deserializer).or_else(|| {
